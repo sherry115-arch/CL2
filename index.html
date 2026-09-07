@@ -710,10 +710,12 @@
       text-align: left;
       transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
       transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
     }
 
     .vocab-card.flipped .vocab-card-inner {
       transform: rotateY(180deg);
+      -webkit-transform: rotateY(180deg);
     }
 
     .vocab-card-front, .vocab-card-back {
@@ -734,12 +736,15 @@
     .vocab-card-front {
       background: #FFFFFF;
       border-top: 6px solid var(--primary-color);
+      transform: rotateY(0deg);
+      -webkit-transform: rotateY(0deg);
     }
 
     .vocab-card-back {
       background: #FFFDF9;
       border-top: 6px solid var(--secondary-color);
       transform: rotateY(180deg);
+      -webkit-transform: rotateY(180deg);
       overflow-y: auto;
     }
 
@@ -1064,23 +1069,38 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.15rem;
+      font-size: clamp(0.92rem, 2.2vw, 1.15rem);
       font-weight: 900;
       color: #fff;
       cursor: pointer;
       box-shadow: var(--shadow-sm);
-      transition: var(--transition-smooth);
+      transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.3s ease, border-color 0.3s ease;
       position: relative;
       user-select: none;
       text-align: center;
-      padding: 8px;
+      padding: 10px;
+      line-height: 1.35;
+      transform: perspective(600px) rotateY(0deg);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .memory-card:hover:not(.flipped):not(.matched) {
+      transform: perspective(600px) translateY(-4px) scale(1.03);
+      box-shadow: var(--shadow-md);
     }
 
     .memory-card.flipped {
       background: #FFFFFF;
       color: var(--text-main);
       border: 3px solid var(--secondary-color);
-      transform: rotateY(180deg);
+      box-shadow: var(--shadow-md);
+      transform: perspective(600px) rotateY(0deg);
+      animation: memoryFlipIn 0.36s ease-out;
+    }
+
+    .memory-card.unflipping {
+      animation: memoryFlipOut 0.32s ease-in;
     }
 
     .memory-card.matched {
@@ -1088,13 +1108,38 @@
       color: #10AC84;
       border: 3px solid #10AC84;
       cursor: default;
-      animation: pulseMatch 0.5s ease;
+      transform: perspective(600px) rotateY(0deg);
+      animation: pulseMatch 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes memoryFlipIn {
+      0% {
+        transform: perspective(600px) rotateY(0deg) scale(0.95);
+      }
+      50% {
+        transform: perspective(600px) rotateY(90deg) scale(1.05);
+      }
+      100% {
+        transform: perspective(600px) rotateY(0deg) scale(1);
+      }
+    }
+
+    @keyframes memoryFlipOut {
+      0% {
+        transform: perspective(600px) rotateY(0deg) scale(1);
+      }
+      50% {
+        transform: perspective(600px) rotateY(90deg) scale(1.05);
+      }
+      100% {
+        transform: perspective(600px) rotateY(0deg) scale(1);
+      }
     }
 
     @keyframes pulseMatch {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.08); }
-      100% { transform: scale(1); }
+      0% { transform: perspective(600px) scale(1); }
+      50% { transform: perspective(600px) scale(1.1); }
+      100% { transform: perspective(600px) scale(1); }
     }
 
     /* 遊戲 2：課文三格梯子排序 (Story Ladder Sequence) */
@@ -2583,13 +2628,16 @@
     }
 
     function handleMemoryFlip(cardEl, cardData) {
-      if (cardEl.classList.contains('flipped') || cardEl.classList.contains('matched') || flippedCards.length >= 2) {
+      if (cardEl.classList.contains('flipped') || cardEl.classList.contains('matched') || cardEl.classList.contains('unflipping') || flippedCards.length >= 2) {
         return;
       }
 
       SoundEffects.click();
       cardEl.classList.add('flipped');
-      cardEl.innerText = cardData.text;
+      // 在 3D 翻轉至 90 度側面的瞬間換字，翻開時文字 100% 正向端正（不鏡像顛倒）
+      setTimeout(() => {
+        cardEl.innerText = cardData.text;
+      }, 150);
       flippedCards.push({ element: cardEl, data: cardData });
 
       if (flippedCards.length === 2) {
@@ -2616,14 +2664,20 @@
             }, 500);
           }
         } else {
-          // 配對失敗，翻轉回蓋牌
+          // 配對失敗，立體翻轉回蓋牌
           SoundEffects.wrong();
           setTimeout(() => {
-            card1.element.classList.remove('flipped');
-            card2.element.classList.remove('flipped');
-            card1.element.innerText = '？';
-            card2.element.innerText = '？';
-            flippedCards = [];
+            card1.element.classList.add('unflipping');
+            card2.element.classList.add('unflipping');
+            setTimeout(() => {
+              card1.element.innerText = '？';
+              card2.element.innerText = '？';
+            }, 150);
+            setTimeout(() => {
+              card1.element.classList.remove('flipped', 'unflipping');
+              card2.element.classList.remove('flipped', 'unflipping');
+              flippedCards = [];
+            }, 320);
           }, 900);
         }
       }
